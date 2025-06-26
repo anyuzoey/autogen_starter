@@ -4,6 +4,10 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "autogen-agentchat",
+    "autogen-ext",
     "autogen-ext[openai,azure]",
-    "python-dotenv"
+    "mcp>=1.10.0",
+    "python-dotenv",
+    "tavily-python",
+    "aiohttp",
 ]
