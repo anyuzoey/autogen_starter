@@ -10,4 +10,7 @@ dependencies = [
     "python-dotenv",
     "tavily-python",
     "aiohttp",
+    "aiofiles",
+    "fastapi",
+    "uvicorn[standard]"
 ]

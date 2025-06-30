@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoGen GitHub Issue Commenter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+        }
+
+        #chat-container {
+            width: 95%;
+            max-width: 800px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        #header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #007bff;
+        }
+
+        #header h1 {
+            color: #007bff;
+            margin: 0;
+        }
+
+        #header p {
+            color: #666;
+            margin: 5px 0 0 0;
+        }
+
+        #messages {
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 20px;
+            background-color: #fafafa;
+        }
+
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #ddd;
+        }
+
+        .message.user {
+            background-color: #e3f2fd;
+            border-left-color: #2196f3;
+        }
+
+        .message.issue_reader {
+            background-color: #f3e5f5;
+            border-left-color: #9c27b0;
+        }
+
+        .message.researcher {
+            background-color: #e8f5e8;
+            border-left-color: #4caf50;
+        }
+
+        .message.reasoner {
+            background-color: #fff3e0;
+            border-left-color: #ff9800;
+        }
+
+        .message.user_proxy {
+            background-color: #fce4ec;
+            border-left-color: #e91e63;
+        }
+
+        .message.commenter {
+            background-color: #e0f2f1;
+            border-left-color: #009688;
+        }
+
+        .message.error {
+            background-color: #ffebee;
+            border-left-color: #f44336;
+            color: #721c24;
+        }
+
+        .message.system {
+            background-color: #e8eaf6;
+            border-left-color: #3f51b5;
+            color: #0c5460;
+        }
+
+        .label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+            text-transform: capitalize;
+        }
+
+        .content {
+            margin-top: 5px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        #input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        #input-container input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        #input-container button {
+            padding: 12px 20px;
+            border: none;
+            background-color: #007bff;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        #input-container button:hover {
+            background-color: #0056b3;
+        }
+
+        #input-container input:disabled,
+        #input-container button:disabled {
+            background-color: #e0e0e0;
+            cursor: not-allowed;
+            color: #666;
+        }
+
+        .status {
+            text-align: center;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .status.connecting {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .approval-section {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            text-align: center;
+        }
+
+        .approval-section h3 {
+            margin: 0 0 10px 0;
+            color: #856404;
+        }
+
+        .approval-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .approval-buttons button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .approval-buttons .approve {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .approval-buttons .reject {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .approval-buttons button:hover {
+            opacity: 0.8;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .draft-container {
+            margin-bottom: 10px;
+        }
+
+        .draft-container label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .draft-container textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="chat-container">
+        <div id="header">
+            <h1>🤖 AutoGen GitHub Issue Commenter</h1>
+            <p>Multi-agent workflow with human-in-the-loop approval</p>
+        </div>
+
+        <div id="status" class="status connecting">Connecting to server...</div>
+
+        <div id="messages"></div>
+
+        <div id="approval-section" class="approval-section hidden">
+            <h3>🤔 Human Approval Required</h3>
+            <p>The agents have analyzed the issue and prepared a comment draft. Please review, edit if needed, and approve:</p>
+            
+            <div class="draft-container">
+                <label for="draft-textarea">Comment Draft:</label>
+                <textarea id="draft-textarea" rows="8" placeholder="Edit the comment draft here..."></textarea>
+            </div>
+            
+            <div class="approval-buttons">
+                <button class="approve" onclick="approveComment()">✅ APPROVE & Post Comment</button>
+                <button class="reject" onclick="rejectComment()">❌ REJECT</button>
+            </div>
+        </div>
+
+        <div id="input-container">
+            <input type="text" id="message-input" placeholder="Enter GitHub issue URL (e.g., https://github.com/owner/repo/issues/123)">
+            <button id="send-button" onclick="sendMessage()">🚀 Start Analysis</button>
+        </div>
+    </div>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:8003/ws/chat');
+        let isWaitingForApproval = false;
+        let currentDraft = "";
+
+        ws.onopen = function() {
+            updateStatus('connected', 'Connected to server');
+            enableInput();
+        };
+
+        ws.onmessage = function (event) {
+            const message = JSON.parse(event.data);
+
+            if (message.type === 'UserInputRequestedEvent') {
+                // Show approval section when user input is requested
+                showApprovalSection();
+                isWaitingForApproval = true;
+            }
+            else if (message.type === 'error') {
+                displayMessage(message.content, 'error');
+                enableInput();
+                hideApprovalSection();
+            }
+            else {
+                // Display regular message
+                displayMessage(message.content, message.source);
+                
+                // Capture draft from reasoner agent
+                if (message.source === 'reasoner' && message.content.includes('DRAFT:')) {
+                    currentDraft = message.content.replace('DRAFT:', '').trim();
+                    // Pre-populate the textarea with the draft
+                    setTimeout(() => {
+                        const textarea = document.getElementById('draft-textarea');
+                        if (textarea) {
+                            textarea.value = currentDraft;
+                        }
+                    }, 100);
+                }
+                
+                // If this is a commenter message, it might be the final result
+                if (message.source === 'commenter') {
+                    hideApprovalSection();
+                    enableInput();
+                }
+            }
+        };
+
+        ws.onerror = function(error) {
+            updateStatus('error', 'WebSocket error occurred. Please refresh the page.');
+            displayMessage("WebSocket error occurred. Please refresh the page.", 'error');
+            enableInput();
+        };
+
+        ws.onclose = function() {
+            updateStatus('error', 'Connection closed. Please refresh the page.');
+            displayMessage("Connection closed. Please refresh the page.", 'system');
+            disableInput();
+        };
+
+        document.getElementById('message-input').addEventListener('keydown', function (event) {
+            if (event.key === 'Enter' && !event.target.disabled) {
+                sendMessage();
+            }
+        });
+
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const button = document.getElementById('send-button');
+            const message = input.value;
+            
+            if (!message) return;
+            
+            // Validate GitHub URL
+            if (!isValidGitHubUrl(message)) {
+                displayMessage("Please enter a valid GitHub issue URL (e.g., https://github.com/owner/repo/issues/123)", 'error');
+                return;
+            }
+
+            // Clear input and disable input and send button
+            input.value = '';
+            disableInput();
+            hideApprovalSection();
+
+            // Send message to WebSocket
+            ws.send(JSON.stringify({ content: message, source: 'user' }));
+        }
+
+        function isValidGitHubUrl(url) {
+            const githubUrlPattern = /^https:\/\/github\.com\/[^\/]+\/[^\/]+\/(issues|pull)\/\d+/;
+            return githubUrlPattern.test(url);
+        }
+
+        function displayMessage(content, source) {
+            const messagesContainer = document.getElementById('messages');
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${source}`;
+
+            const labelElement = document.createElement('span');
+            labelElement.className = 'label';
+            
+            // Create nice labels for each agent
+            const labels = {
+                'user': '👤 You',
+                'issue_reader': '📖 Issue Reader',
+                'researcher': '🔍 Researcher',
+                'reasoner': '🧠 Reasoner',
+                'user_proxy': '👤 Human Approval',
+                'commenter': '💬 Commenter',
+                'error': '❌ Error',
+                'system': '⚙️ System'
+            };
+            
+            labelElement.textContent = labels[source] || source;
+
+            const contentElement = document.createElement('div');
+            contentElement.className = 'content';
+            contentElement.textContent = content;
+
+            messageElement.appendChild(labelElement);
+            messageElement.appendChild(contentElement);
+            messagesContainer.appendChild(messageElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function disableInput() {
+            const input = document.getElementById('message-input');
+            const button = document.getElementById('send-button');
+            input.disabled = true;
+            button.disabled = true;
+        }
+
+        function enableInput() {
+            const input = document.getElementById('message-input');
+            const button = document.getElementById('send-button');
+            input.disabled = false;
+            button.disabled = false;
+            input.focus();
+        }
+
+        function updateStatus(type, message) {
+            const statusElement = document.getElementById('status');
+            statusElement.className = `status ${type}`;
+            statusElement.textContent = message;
+        }
+
+        function showApprovalSection() {
+            const approvalSection = document.getElementById('approval-section');
+            approvalSection.classList.remove('hidden');
+        }
+
+        function hideApprovalSection() {
+            const approvalSection = document.getElementById('approval-section');
+            approvalSection.classList.add('hidden');
+            isWaitingForApproval = false;
+        }
+
+        function approveComment() {
+            if (isWaitingForApproval) {
+                const textarea = document.getElementById('draft-textarea');
+                const editedDraft = textarea.value.trim();
+                
+                // If the draft was edited, send the edited version
+                if (editedDraft !== currentDraft) {
+                    ws.send(JSON.stringify({ content: editedDraft, source: 'user' }));
+                    displayMessage('✅ Comment edited and posted to GitHub!', 'system');
+                } else {
+                    // If no changes, send APPROVE
+                    ws.send(JSON.stringify({ content: 'APPROVE', source: 'user' }));
+                    displayMessage('✅ Comment approved and posted to GitHub!', 'system');
+                }
+                
+                hideApprovalSection();
+                enableInput();
+            }
+        }
+
+        function rejectComment() {
+            if (isWaitingForApproval) {
+                ws.send(JSON.stringify({ content: 'REJECT', source: 'user' }));
+                hideApprovalSection();
+                displayMessage('❌ Comment rejected. You can try again with a different issue.', 'system');
+                enableInput();
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                const response = await fetch('http://localhost:8003/history');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const history = await response.json();
+                history.forEach(message => {
+                    displayMessage(message.content, message.source);
+                });
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+
+        // Load chat history when the page loads
+        window.onload = loadHistory;
+    </script>
+</body>
+
+</html> 
